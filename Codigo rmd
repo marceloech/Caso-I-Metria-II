@@ -8,7 +8,6 @@ editor_options:
 
 ```{r setup, include = FALSE, warning = FALSE, message = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd(r"(C:\Users\mn.echevarriac\Desktop\Caso_MetriaII)")
 #install.packages("ggplot2")
 #install.packages("dplyr")
 #install.packages("readxl")
@@ -23,6 +22,9 @@ library(dplyr)
 library(readxl)
 library(stats)
 library(latex2exp)
+
+setwd(r"(C:\Users\ar.sakaguchih\Documents)")
+
 ```
 
 
@@ -30,24 +32,35 @@ library(latex2exp)
 
 datos <- read.csv("Serie_Caso_1.csv",sep = ";")
 
-cielots <- ts(datos$serie, start = c(2010, 1), frequency = 12)
+cielots <- ts(datos$serie, start = c(2010, 1), frequency = 1)
 
 
 ```
-### 1.
+### 1. 
 ```{r}
 plot(cielots)
 acf(cielots)
 pacf(cielots)
 datos <- datos %>% mutate(t = row_number())
-rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos)
+rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos, robust)
 
 
 summary(rezago)
 
 ```
 
+Visualmente, el gráfico de la serie de tiempo muestra una clara tendencia y, si bien es necesario hacer una prueba, se puede especular que hay quiebres estructurales en los años ---. Nuestra hipótesis inicial es que el proceso generador de datos es un random walk con drift.
+
+Con respecto a los correlogramas, la FAC muestra una persistencia muy alta y la FAP un alto valor sólo para el primer rezago. 
+
+Finalmente, los resultados de la regresión muestran un coeficiente significativo del primer rezago cercano a 1, lo que sugiere la presencia de una raíz unitaria. Esto refuerza nuestra hipótesis sobre el proceso generador de datos. 
+
 ### 2. 
+
+Si $\rho$ es mayor igual a 1, no necesariamente hay raíz unitaria, pero sí indica que la serie es no estacionaria. 
+
+Sólo si $\rho$ es igual a 1, estaremos ante una raíz unitaria, de modo que el modelo será un random walk. En el caso de $\rho$ mayor a 1, la serie es explosiva, pues depende más que proporcionalmente de su rezago.
+
 ### 3. 
 ```{r}
 
