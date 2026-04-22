@@ -1,0 +1,64 @@
+---
+title: "Trabajo Metria II"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd(r"(C:\Users\mn.echevarriac\Desktop\Caso_MetriaII)")
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("readxl")
+#install.packages(stats)
+#install.packages("latex2exp")
+#install.packages("urca")
+
+# Cargar la librería
+library(urca)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(stats)
+library(latex2exp)
+```
+
+
+```{r}
+
+datos <- read.csv("Serie_Caso_1.csv",sep = ";")
+
+cielots <- ts(datos$serie, start = c(2010, 1), frequency = 12)
+
+
+```
+### 1.
+```{r}
+plot(cielots)
+acf(cielots)
+pacf(cielots)
+datos <- datos %>% mutate(t = row_number())
+rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos)
+
+
+summary(rezago)
+
+```
+
+### 2. 
+### 3. 
+```{r}
+
+
+
+summary(ur.df(Serie[, 2], type = "trend", lags = 0))
+
+summary(ur.df(Serie[, 2], type = "drift", lags= 0))
+
+summary(ur.df(Serie[, 2], type = "trend", lags=0))
+
+```
+
+### 4. 
