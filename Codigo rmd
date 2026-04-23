@@ -14,8 +14,12 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages(stats)
 #install.packages("latex2exp")
 #install.packages("urca")
+#install.packages("forecast")
 
 # Cargar la librería
+library(lmtest)
+library(forecast)
+library(sandwich)
 library(urca)
 library(ggplot2)
 library(dplyr)
@@ -23,7 +27,7 @@ library(readxl)
 library(stats)
 library(latex2exp)
 
-setwd(r"(C:\Users\ar.sakaguchih\Documents)")
+setwd(r"(C:\Users\HP\Desktop\Metria 2)")
 
 ```
 
@@ -32,46 +36,234 @@ setwd(r"(C:\Users\ar.sakaguchih\Documents)")
 
 datos <- read.csv("Serie_Caso_1.csv",sep = ";")
 
-cielots <- ts(datos$serie, start = c(2010, 1), frequency = 1)
+cielots <- ts(datos$serie, start = c(2010, 1), frequency = 12)
 
 
 ```
-### 1. 
+
+### 1. Análisis Exploratorio
+```{r, echo=FALSE}
+plot(cielots, main = "Evolución Mensual de la Actividad Operativa",
+     ylab = "Indicador Operativo", xlab = "Año",
+     col = "darkblue", lwd = 2, bty = "l")
+grid(nx = NA, ny = NULL, lty = 2, col = "gray", lwd = 1)
+
+
+par(mfrow = c(1, 2))
+acf(cielots, main = "FAC - Nivel", col = "darkred")
+pacf(cielots, main = "FAP - Nivel", col = "darkred")
+par(mfrow = c(1, 1))
+```
+
 ```{r}
-plot(cielots)
-acf(cielots)
-pacf(cielots)
-datos <- datos %>% mutate(t = row_number())
-rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos, robust)
+rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos)
+
+#Obtenemos el resumen con los errores estándar robustos de Newey-West que corrigen por heterocedasticidad y autocorrelación de errores.
+
+reg_rob <- coeftest(rezago, vcov = vcovHAC(rezago))
 
 
 summary(rezago)
 
 ```
 
-Visualmente, el gráfico de la serie de tiempo muestra una clara tendencia y, si bien es necesario hacer una prueba, se puede especular que hay quiebres estructurales en los años ---. Nuestra hipótesis inicial es que el proceso generador de datos es un random walk con drift.
+Visualmente, el gráfico de la serie de tiempo muestra fluctuaciones irregulares alrededor de una clara tendencia . Nuestra hipótesis inicial es que el modelo teórico es un random walk con drift.
 
-Con respecto a los correlogramas, la FAC muestra una persistencia muy alta y la FAP un alto valor sólo para el primer rezago. 
+Al observar los correlogramas, la Función de Autocorrelación (FAC) muestra un decaimiento lento y prolongado, confirmando una persistencia muy alta en la serie. Por su parte, la Función de Autocorrelación Parcial (FAP) presenta un pico significativo únicamente en el primer rezago, cayendo a cero para los rezagos posteriores. Este comportamiento es clásico de una serie no estacionaria. 
 
 Finalmente, los resultados de la regresión muestran un coeficiente significativo del primer rezago cercano a 1, lo que sugiere la presencia de una raíz unitaria. Esto refuerza nuestra hipótesis sobre el proceso generador de datos. 
 
-### 2. 
+### 2. Dinámicas de No Estacionariedad
 
 Si $\rho$ es mayor igual a 1, no necesariamente hay raíz unitaria, pero sí indica que la serie es no estacionaria. 
 
-Sólo si $\rho$ es igual a 1, estaremos ante una raíz unitaria, de modo que el modelo será un random walk. En el caso de $\rho$ mayor a 1, la serie es explosiva, pues depende más que proporcionalmente de su rezago.
+Sólo si $\rho$ es igual a 1, estaremos ante una raíz unitaria, de modo que el modelo será un random walk. En el caso de $\rho$ mayor a 1, la serie es explosiva, pues depende más que proporcionalmente de su rezago. Esta serie tendrá un comportamiento exponencial creciente o decreciente dependiendo del valor inicial.
 
-### 3. 
+Graficamente, el proceso explosivo y randow walk con drift se pueden ver a continuación: 
+
+
+```{r,echo = FALSE}
+
+
+set.seed(123)
+T_obs <- 100
+
+#Random Walk
+e1 <- rnorm(T_obs)
+
+rw_drift <- cumsum(0.5 + e1) 
+
+
+# 2. Proceso Explosivo (y_t = 1.5* y_{t-1} + e_t)
+
+e2 <- rnorm(T_obs)
+explosivo <- numeric(T_obs) 
+explosivo[1] <- e2[1]      
+
+for (t in 2:T_obs) {
+  explosivo[t] <- 1.5 * explosivo[t - 1] + e2[t]
+}
+
+
+e3 <- rnorm(T_obs)
+explosivo_2 <- numeric(T_obs) 
+explosivo_2[1] <- 2
+
+for (t in 2:T_obs) {
+  explosivo_2[t] <- 1.5 * explosivo_2[t - 1] + e3[t]
+}
+
+
+#Graficos
+par(mfrow = c(1, 3)) 
+
+plot(rw_drift, type="l",  main = "Random Walk con Drift", ylab = "y_t", xlab = "t")
+
+acf(rw_drift, main = "ACF - RW Drift")
+
+pacf(rw_drift, main = "PACF - RW Drift")
+
+# Analisis del Proceso Explosivo 1
+plot(explosivo, type = "l",  main = "Proceso Explosivo (rho > 1)", ylab = "y_t", xlab = "t")
+
+acf(explosivo, main = "ACF - Explosivo")
+pacf(explosivo, main = "PACF - Explosivo")
+
+#Proceso Explosivo 2
+
+plot(explosivo_2, type = "l",  main = "Proceso Explosivo 2 (rho>1)", ylab = "y_t", xlab = "t")
+
+acf(explosivo_2, main = "ACF - Explosivo 2")
+pacf(explosivo_2, main = "PACF - Explosivo 2")
+
+par(mfrow = c(1, 1))
+```
+### 3. Prueba de Raíz Unitaria: Dickey-Fuller Aumentada (ADF)
+
 ```{r}
 
+#Calculamos el límite para T=192
 
+lags_max <- floor((192)^(1/3)) #Esto te da 5
 
-summary(ur.df(Serie[, 2], type = "trend", lags = 0))
+#Evaluamos los modelos: 
 
-summary(ur.df(Serie[, 2], type = "drift", lags= 0))
+summary(ur.df(cielots , type = "none",  selectlags="BIC", lags= lags_max))
 
-summary(ur.df(Serie[, 2], type = "trend", lags=0))
+summary(ur.df(cielots , type = "drift", selectlags="BIC", lags= lags_max))
+
+summary(ur.df(cielots, type = "trend", selectlags="BIC", lags= lags_max))
 
 ```
+Para evaluar la estacionariedad, se aplicó la prueba de Dickey-Fuller Aumentada (ADF) bajo las tres especificaciones. El número máximo de rezagos se calculo con la regla $T^{1/3}$. Luego se seleccionó los rezagos utilizando el criterio de información BIC para asegurar la parsimonia del modelo---esto pues es el criterio que más castiga por número de regresores---. 
 
-### 4. 
+**Hipótesis de la prueba:**
+En todas sus especificaciones, la prueba ADF evalúa las siguientes hipótesis sobre el coeficiente $\gamma$ asociado al nivel rezagado de la variable:
+ **Hipótesis Nula ($H_0$):** $\gamma = 0$. La serie posee al menos una raíz unitaria (es no estacionaria).
+**Hipótesis Alternativa ($H_1$):** $\gamma < 0$. La serie no posee raíz unitaria (es estacionaria).
+
+Simulamos con Dickey y Fuller distribuciones específicas ($\tau_1, \tau_2, \tau_3$) según la especificación del modelo:
+
+1.  **Modelo sin constante ni tendencia (None - $\tau_1$):** $$\Delta Y_t = \gamma Y_{t-1} + \sum_{i=1}^{p} \beta_i \Delta Y_{t-i} + \epsilon_t$$
+2.  **Modelo con constante o *drift* (Drift - $\tau_2$):** Asume que la serie fluctúa alrededor de una media distinta de cero.
+    $$\Delta Y_t = \alpha + \gamma Y_{t-1} + \sum_{i=1}^{p} \beta_i \Delta Y_{t-i} + \epsilon_t$$
+3.  **Modelo con constante y tendencia determinística (Trend - $\tau_3$):** Asume que la serie fluctúa alrededor de una tendencia lineal.
+    $$\Delta Y_t = \alpha + \delta t + \gamma Y_{t-1} + \sum_{i=1}^{p} \beta_i \Delta Y_{t-i} + \epsilon_t$$
+
+Luego, obtenemos que: 
+
+1.  **Modelo "Trend" (Tendencia e Intercepto):** El estadístico de prueba calculado ($\tau_3$) es -1.3666. Dado que este valor no es menor (más negativo) que el valor crítico al 5% (-3.43), **no rechazamos la hipótesis nula**. La serie tiene una raíz unitaria. Adicionalmente, evaluando la significancia conjunta de la raíz unitaria y la tendencia ($\phi_3 = 3.5938$), este valor es menor al crítico (6.49), indicando que la tendencia determinística no es significativa.
+2.  **Modelo "Drift" (Solo Intercepto):** Dado que la tendencia no aportaba, revisamos este modelo. El estadístico calculado ($\tau_2$) es 1.9945, el cual es muy superior al valor crítico al 5% (-2.88). Nuevamente, **no rechazamos la hipótesis nula**. El estadístico $\phi_1$ (15.1841) sí supera el valor crítico (4.63), lo que sugiere que el modelo con deriva es estadísticamente relevante para describir la dinámica de la serie, pero sigue confirmando la presencia de la raíz unitaria.
+3.  **Modelo "None" (Sin intercepto ni tendencia):** Finalmente, el estadístico ($\tau_1$) es 5.4955, muy por encima del valor crítico de -1.95. **No se rechaza la hipótesis nula**.
+
+La evidencia de la prueba ADF es robusta y consistente a través de todas las especificaciones de que la serie tiene raiz unitaria. Además, el análisis de los estadísticos auxiliares (los valores $\phi$) sugiere que el proceso generador de datos se comporta mejor como un *Random Walk con Drift*, a diferencia de la tendencia lineal determinística, la cual no resultó significativa en el modelo. A continuación se muestra la gráfica de la serie diferenciada:
+
+```{r, echo=FALSE}
+plot(diff(cielots), main = "Serie en Primeras Diferencias", 
+     col = "darkgreen", ylab = "D(Indicador)", xlab = "Año")
+abline(h = 0, lty = 2)
+```
+
+
+### 4. Pruebas Alternativas a la ADF
+
+Adicionalmente a las pruebas ADF, sería altamente recomendable emplear la Prueba de Phillips-Perron (PP) o la Prueba KPSS. A diferencia de la prueba ADF, que introduce rezagos de la variable dependiente para corregir la autocorrelación, la prueba de PP utiliza métodos no paramétricos para corregir cualquier posible autocorrelación y heterocedasticidad en los residuos. La prueba PP nos daría mayor robustez.Por su parte, la prueba KPSS nos puede ayudar a confirmar el resultado pues invierte la $H_0$ al probar la raiz unitaria en la serie en niveles. Si la prueba ADF indica raíz unitaria (no rechaza $H_0$) y la prueba KPSS también indica raíz unitaria (sí rechaza su $H_0$), tendriamos más evidencia de raíz unitaria, lo que puede ayudarnos a mitigar problemas de baja potencia presentes en la prueba ADF.
+
+### 5. Análisis de Quiebres Estructurales: Prueba de Zivot-Andrews
+
+Dado que la serie abarca 15 años, es posible que existan cambios estructurales que confundan a la prueba ADF.
+```{r}
+prueba_za <- ur.za(cielots, model = "both", lag = 2)
+
+summary(prueba_za)
+plot(prueba_za)
+```
+No se rechaza la hipótesis nula de Zivot-Andrews. Pues no existe evidencia estadística suficiente para afirmar que la serie es estacionaria con quiebres estructurales.Esto significa que la no estacionariedad detectada previamente no es causado por un quiebre estructural (falsa raíz unitaria). Así, se confirma que la serie posee una raíz unitaria.
+
+
+### 6. Identificación y Validación del Modelo
+#### a) Propuesta de Modelo ARIMA
+```{r}
+modelo_arima_aic <- auto.arima(cielots, ic = c("aic"))
+modelo_arima_bic <- auto.arima(cielots, ic = c("bic"))
+
+summary(modelo_arima_aic)
+summary(modelo_arima_bic)
+
+```
+Utilizando los criterios de información de Akaike, R identifica el modelo óptimo. 
+Ecuación del Modelo:Considerando los resultados (asumiendo un ARIMA(1,1,2)), la ecuación en diferencias es:$$\Delta Y_t = c + \phi_1 \Delta Y_{t-1} + \theta_1 \varepsilon_{t-1} + \theta_2 \varepsilon_{t-2} + \varepsilon_t$$
+
+Donde $\Delta Y_t = Y_t - Y_{t-1}$. El modelo es estacionario en diferencias.
+
+#### b) Análisis de Residuos
+Para que el modelo sea válido, los residuos deben ser white noise.
+```{r}
+
+residuos <- residuals(modelo_arima_aic)
+
+# Análisis de raíz unitaria en los residuos
+adf_residuos <- ur.df(residuos, type = "none", selectlags = "BIC")
+summary(adf_residuos)
+
+media_res <- mean(residuos)
+var_res <- var(residuos)
+
+cat("\nMedia de los residuos:", media_res, "\n")
+cat("Varianza de los residuos:", var_res, "\n")
+
+```
+```{r, echo=FALSE}
+
+fechas <- time(residuos)
+df_res <- data.frame(Fecha = as.numeric(fechas), 
+                     Error = as.numeric(residuos))
+
+# Serie de Tiempo de los Errores
+grafico_tiempo <- ggplot(df_res, aes(x = Fecha, y = Error)) +
+  geom_line(color = "darkorange", linewidth = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+  labs(title = "Serie de Tiempo de los Errores (Residuos)",
+       x = "Año",
+       y = "Magnitud del Error") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+# Distribución muestral de los Errores
+grafico_dist <- ggplot(df_res, aes(x = Error)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "steelblue", color = "white", alpha = 0.8) +
+  geom_density(color = "darkred", linewidth = 1.2) +
+  geom_vline(aes(xintercept = mean(Error)), color = "black", linetype = "dashed", linewidth = 1) +
+  labs(title = "Distribución de los Errores",
+       subtitle = paste("Media:", round(media_res, 4), "| Varianza:", round(var_res, 4)),
+       x = "Residuo",
+       y = "Densidad") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+print(grafico_tiempo)
+print(grafico_dist)
+```
+
+La prueba ADF en los residuos rechaza la raíz unitaria; los errores son estacionarios. Visualmente, la serie de errores fluctúa aleatoriamente alrededor de cero.La distribución es aproximadamente es relativamente simétrica ---ignorando el outlier--- con media cercana a cero, lo que podria validar la calidad predictiva e inferencial del modelo propuesto.
