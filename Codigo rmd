@@ -1,7 +1,7 @@
 ---
-title: "Trabajo Metria II"
+title: "Caso Econometría II"
 output: html_notebook
-editor_options: 
+editor_options:
   chunk_output_type: inline
 ---
 
@@ -58,7 +58,7 @@ par(mfrow = c(1, 1))
 ```{r}
 rezago <- lm(serie ~ lag(serie, 1) - 1 , data = datos)
 
-#Obtenemos el resumen con los errores estándar robustos de Newey-West que corrigen por heterocedasticidad y autocorrelación de errores.
+# Obtenemos el resumen con los errores estándar robustos de Newey-West que corrigen por heterocedasticidad y autocorrelación de errores.
 
 reg_rob <- coeftest(rezago, vcov = vcovHAC(rezago))
 
@@ -67,19 +67,19 @@ summary(rezago)
 
 ```
 
-Visualmente, el gráfico de la serie de tiempo muestra fluctuaciones irregulares alrededor de una clara tendencia . Nuestra hipótesis inicial es que el modelo teórico es un random walk con drift.
+Visualmente, el gráfico de la serie de tiempo muestra fluctuaciones irregulares alrededor de una clara tendencia. Nuestra hipótesis inicial es que el modelo teórico es un random walk con drift.
 
-Al observar los correlogramas, la Función de Autocorrelación (FAC) muestra un decaimiento lento y prolongado, confirmando una persistencia muy alta en la serie. Por su parte, la Función de Autocorrelación Parcial (FAP) presenta un pico significativo únicamente en el primer rezago, cayendo a cero para los rezagos posteriores. Este comportamiento es clásico de una serie no estacionaria. 
+Al observar los correlogramas, la Función de Autocorrelación (FAC) muestra una lenta y prolongada caída, confirmando una persistencia muy alta en la serie. Por su parte, la Función de Autocorrelación Parcial (FAP) presenta un pico significativo únicamente en el primer rezago, cayendo a cero para los posteriores. Este comportamiento es el usual de una serie no estacionaria. 
 
-Finalmente, los resultados de la regresión muestran un coeficiente significativo del primer rezago cercano a 1, lo que sugiere la presencia de una raíz unitaria. Esto refuerza nuestra hipótesis sobre el proceso generador de datos. 
+Finalmente, los resultados de la regresión devuelven un coeficiente significativo cercano a 1 para el primer rezago, lo que sugiere la presencia de una raíz unitaria. Esto refuerza nuestra hipótesis sobre el proceso generador de datos. 
 
 ### 2. Dinámicas de No Estacionariedad
 
 Si $\rho$ es mayor igual a 1, no necesariamente hay raíz unitaria, pero sí indica que la serie es no estacionaria. 
 
-Sólo si $\rho$ es igual a 1, estaremos ante una raíz unitaria, de modo que el modelo será un random walk. En el caso de $\rho$ mayor a 1, la serie es explosiva, pues depende más que proporcionalmente de su rezago. Esta serie tendrá un comportamiento exponencial creciente o decreciente dependiendo del valor inicial.
+En el caso que $\rho$ sea igual a 1, el modelo tomará la forma de un random walk, por lo que tendrá raíz unitaria. Por otro lado, si $\rho$ es mayor a 1, la serie será explosiva, pues dependerá más que proporcionalmente de su rezago. Esta serie tendrá un comportamiento exponencial creciente o decreciente, dependiendo del valor inicial.
 
-Graficamente, el proceso explosivo y randow walk con drift se pueden ver a continuación: 
+Gráficamente, el random walk con drift y el proceso explosivo se pueden ver a continuación: 
 
 
 ```{r,echo = FALSE}
@@ -142,11 +142,11 @@ par(mfrow = c(1, 1))
 
 ```{r}
 
-#Calculamos el límite para T=192
+# Calculamos el límite para T=192
 
 lags_max <- floor((192)^(1/3)) #Esto te da 5
 
-#Evaluamos los modelos: 
+# Evaluamos los modelos: 
 
 summary(ur.df(cielots , type = "none",  selectlags="BIC", lags= lags_max))
 
@@ -155,14 +155,14 @@ summary(ur.df(cielots , type = "drift", selectlags="BIC", lags= lags_max))
 summary(ur.df(cielots, type = "trend", selectlags="BIC", lags= lags_max))
 
 ```
-Para evaluar la estacionariedad, se aplicó la prueba de Dickey-Fuller Aumentada (ADF) bajo las tres especificaciones. El número máximo de rezagos se calculo con la regla $T^{1/3}$. Luego se seleccionó los rezagos utilizando el criterio de información BIC para asegurar la parsimonia del modelo---esto pues es el criterio que más castiga por número de regresores---. 
+Para evaluar la estacionariedad, se aplicó la prueba de Dickey-Fuller Aumentada (ADF) bajo las tres especificaciones. El número máximo de rezagos se calculó con la regla de Dickey-Said: $T^{1/3}$. Luego se seleccionaron los rezagos utilizando el criterio de información BIC para asegurar la parsimonia del modelo, pues es el criterio que más castiga por número de regresores. 
 
-**Hipótesis de la prueba:**
-En todas sus especificaciones, la prueba ADF evalúa las siguientes hipótesis sobre el coeficiente $\gamma$ asociado al nivel rezagado de la variable:
- **Hipótesis Nula ($H_0$):** $\gamma = 0$. La serie posee al menos una raíz unitaria (es no estacionaria).
-**Hipótesis Alternativa ($H_1$):** $\gamma < 0$. La serie no posee raíz unitaria (es estacionaria).
+**Hipótesis de la pruebas:**
+En todas sus especificaciones, la prueba ADF evalúa las siguientes hipótesis sobre el coeficiente $\gamma$ asociado al primer rezago de la variable:
+*Hipótesis Nula ($H_0$):* $\gamma = 0$. La serie posee al menos una raíz unitaria (es no estacionaria).
+*Hipótesis Alternativa ($H_1$):* $\gamma < 0$. La serie no posee raíz unitaria (es estacionaria).
 
-Simulamos con Dickey y Fuller distribuciones específicas ($\tau_1, \tau_2, \tau_3$) según la especificación del modelo:
+Simulamos con Dickey-Fuller distribuciones específicas ($\tau_1, \tau_2, \tau_3$) según la especificación del modelo:
 
 1.  **Modelo sin constante ni tendencia (None - $\tau_1$):** $$\Delta Y_t = \gamma Y_{t-1} + \sum_{i=1}^{p} \beta_i \Delta Y_{t-i} + \epsilon_t$$
 2.  **Modelo con constante o *drift* (Drift - $\tau_2$):** Asume que la serie fluctúa alrededor de una media distinta de cero.
@@ -172,11 +172,11 @@ Simulamos con Dickey y Fuller distribuciones específicas ($\tau_1, \tau_2, \tau
 
 Luego, obtenemos que: 
 
-1.  **Modelo "Trend" (Tendencia e Intercepto):** El estadístico de prueba calculado ($\tau_3$) es -1.3666. Dado que este valor no es menor (más negativo) que el valor crítico al 5% (-3.43), **no rechazamos la hipótesis nula**. La serie tiene una raíz unitaria. Adicionalmente, evaluando la significancia conjunta de la raíz unitaria y la tendencia ($\phi_3 = 3.5938$), este valor es menor al crítico (6.49), indicando que la tendencia determinística no es significativa.
-2.  **Modelo "Drift" (Solo Intercepto):** Dado que la tendencia no aportaba, revisamos este modelo. El estadístico calculado ($\tau_2$) es 1.9945, el cual es muy superior al valor crítico al 5% (-2.88). Nuevamente, **no rechazamos la hipótesis nula**. El estadístico $\phi_1$ (15.1841) sí supera el valor crítico (4.63), lo que sugiere que el modelo con deriva es estadísticamente relevante para describir la dinámica de la serie, pero sigue confirmando la presencia de la raíz unitaria.
-3.  **Modelo "None" (Sin intercepto ni tendencia):** Finalmente, el estadístico ($\tau_1$) es 5.4955, muy por encima del valor crítico de -1.95. **No se rechaza la hipótesis nula**.
+1.  **Modelo "Trend" (Tendencia e Intercepto):** El estadístico de prueba calculado es $\tau_3 \approx -1.37$. Dado que este valor no es menor (más negativo) que el valor crítico al 5% (-3.43), **no rechazamos la hipótesis nula**. De este modo, la serie tiene una raíz unitaria. Adicionalmente, evaluando la significancia conjunta de la raíz unitaria y la tendencia ($\phi_3 \approx 3.59$), este valor es menor al crítico (6.49), indicando que la tendencia determinística no es significativa.Finalmente, la significancia conjunta de raíz unitaria, tendencia y drift sí resulta significativa ($\phi_2 \approx 11.30 > 4.75$).
+2.  **Modelo "Drift" (Sólo Intercepto):** El estadístico calculado es $\tau_2 \approx 1.99$, que es mayor al valor crítico al 5% (-2.88). Nuevamente, **no rechazamos la hipótesis nula**. El estadístico $\phi_1 \approx 15.18$ sí supera el valor crítico (4.63), lo que sugiere que el modelo con drift es estadísticamente relevante para describir la dinámica de la serie, pero sigue confirmando la presencia de la raíz unitaria.
+3.  **Modelo "None" (Sin intercepto ni tendencia):** Finalmente, el estadístico $\tau_1 \approx 5.50$ es mayor que el valor crítico de -1.95, por lo que **no se rechaza la hipótesis nula**. En este modelo también se tiene raíz unitaria
 
-La evidencia de la prueba ADF es robusta y consistente a través de todas las especificaciones de que la serie tiene raiz unitaria. Además, el análisis de los estadísticos auxiliares (los valores $\phi$) sugiere que el proceso generador de datos se comporta mejor como un *Random Walk con Drift*, a diferencia de la tendencia lineal determinística, la cual no resultó significativa en el modelo. A continuación se muestra la gráfica de la serie diferenciada:
+Los resultados de la prueba ADF es robusta y consistente a través de todas las especificaciones: nos confirman que la serie tiene raiz unitaria. Además, el análisis de los estadísticos auxiliares (los valores $\phi$) sugiere que el proceso generador de datos se comporta mejor como un *Random Walk con Drift*, a diferencia de la tendencia lineal determinística, la cual no resultó significativa en el modelo. A continuación se muestra la gráfica de la serie diferenciada:
 
 ```{r, echo=FALSE}
 plot(diff(cielots), main = "Serie en Primeras Diferencias", 
@@ -233,7 +233,7 @@ cat("\nMedia de los residuos:", media_res, "\n")
 cat("Varianza de los residuos:", var_res, "\n")
 
 ```
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 
 fechas <- time(residuos)
 df_res <- data.frame(Fecha = as.numeric(fechas), 
